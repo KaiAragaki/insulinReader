@@ -1,0 +1,43 @@
+insulinReader <- function(dateArg){
+  # Assumptions: Assumes duplicate of duplicate (ie SOP, 4 well per cond)
+  # Reads the file, skipping the (uneeded) header, and packs it in a tibble
+  path <- file.path("~", "Desktop", "Lab", "ELISA Text Files", "Adam") %>%
+    setwd()
+  insFileName <- paste0(dateArg, "_rat.txt")
+  insFile <- readLines(insFileName, encoding = "latin1")
+  endLocations <- grep("~End", unlist(insFile))
+  workingTable <- read.table(insFileName, fill = TRUE, skip = endLocations[3], sep = "\t", col.names = 1:9, na.strings = "")
+  endLocations2 <- grep("~End", unlist(workingTable))
+  allYouNeed <- workingTable[2:(endLocations2[2]-1),]
+  endLocations3 <- grep("~End", unlist(allYouNeed))
+  standardData <- allYouNeed[1:(endLocations3[1]-1),]
+  standardData <- standardData[,-ncol(standardData)]
+  conditionData <- allYouNeed[(endLocations3[1]+2):length(allYouNeed[,1]),] %>%
+    fill(c(X1,X5,X6,X7,X8,X9)) %>%
+    as.tibble()
+  colnames(conditionData) <- as.character(unlist(conditionData[1,]))
+  conditionData <- conditionData[-1,]
+  
+  # ConditionData done. Standard Data needs some work
+  
+  # Add condition category:
+  
+  conditionNames <- paste("Condition", 1:(nrow(conditionData)/4)) %>%
+    rep(each = 4)
+  conditionData[,10] <- conditionNames
+    
+  View(conditionData)
+  
+  # After all that drama, standardData and conditionData now are (semi) normal tables that can be worked with
+
+#  conditionsTable <- workingTable[(endLocations2[1]+2):(endLocations2[2] - 1),]
+
+  #insFile <- read.table(insFileName, fill = TRUE, skip = endLocations[3], sep = "\t")
+  
+  #print(endLocations)
+  #insFile <- read.table(insFileName, sep = "\t", fill = TRUE, skip = endLocations[2])
+    
+    #read.table(sep = "\t", fill = TRUE) %>%
+    #as.tibble()
+  # This is really all you need
+}

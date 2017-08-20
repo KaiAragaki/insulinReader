@@ -34,14 +34,19 @@ insulinReader <- function(dateArg){
     mutate("numericMeanConc" = as.numeric(as.character(Mean_Conc))) %>%
     mutate("conditionMean" = mean(numericMeanConc)) %>%
     mutate("adjCondMean" = mean(conditionMean/4)) %>%
-    mutate("condSD" = sd(c(numericMeanConc[1]/4, numericMeanConc[3]/4))) #Choosing all values would result in overcounting and lower SD - not cool.
+    mutate("condSD" = sd(c(numericMeanConc[1]/4, numericMeanConc[3]/4))) %>%#Choosing all values would result in overcounting and lower SD - not cool.
+    mutate("lower" = adjCondMean-condSD) %>%
+    mutate("upper" = adjCondMean+condSD)
   
   View(groupCond)
   
   # I'll still need the SEM, % above glucose, and labelling capabilities, but for now I'll try plotting this mess.
+  theNumbers <- seq(from = 1, to = length(groupCond$V10), by = 4)
+  print(theNumbers)
   
-  ggplot(groupCond, mapping = aes(x = V10, y = adjCondMean, fill = V10)) +
-    geom_col()
+  ggplot(groupCond[theNumbers,], mapping = aes(x = V10, y = adjCondMean, fill = V10)) +
+    geom_col() +
+    geom_errorbar(ymin = groupCond[theNumbers, ]$lower, ymax = groupCond[theNumbers, ]$upper)
   
   # After all that drama, standardData and conditionData now are (semi) normal tables that can be worked with
 

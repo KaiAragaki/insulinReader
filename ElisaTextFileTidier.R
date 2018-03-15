@@ -8,44 +8,34 @@
 # Fallback if date is not used as file name
 # Standard Data workup
 # Deal with "Range?"
-
-# Look through data and make a guess at the number of wells used
-  # If the number of wells used is even, ask if it they were run in duplicate
-    # If yes, ask if they were run vertically, horizontally, or neither
-      # If vertically, ask for condition names keeping vertical grouping in mind
-      # If horizontally, ask for condition names keeping horizontal grouping in mind
-      # If neither, read off each well and ask for a condition name
-  # If the number of wells is odd, read off each well and ask for a condition name
-
+# Database loading?
+# Change static file system to dynamic
+# Spit standard data out as is (don't forget naming conventions, ie DATE_Standards)
 # Ask for date, passage number, and cell line
-
-# Do calculations here
-
+# Do calculations
 # Name "[Date] ELISA file (tidy)"
-
 # Spit out file
 
+# Assumptions:
+# Assumes the numbers at the beginning of the file name are the date in the form of MMDDYY
 
 insulinReader <- function(fileName){
-  # Load necessary packages
-  require(tidyverse)
-  require(stringr)
-  # Assumptions:
-  # Assumes the numbers at the beginning of the file name are the date in the form of MMDDYY
-  # Assumes duplicate of duplicate (ie SOP, 4 well per cond)
-  # Assumes condition layout is similar or identical
   
-  # Reads the file, skipping the (uneeded) header, and packs it in a tibble
+  # Attach required packages
+  library(tidyverse) 
+  library(stringr)
+
+  # Static file path. Set as working directory. (Will need to change before deployment)
   path <- file.path("C:", "Users", "Adam", "Desktop", "R for Lab Data", "Elisa Text Files") %>%
     setwd()
   
   # Extract numbers from fileName and use them as date
   fileDate <- regmatches(fileName, gregexpr("[[:digit:]]+", fileName))
   
-  # Find the actual file
+  # Find file name
   fileName <- paste0(fileName, ".txt")
-  
-  # Reads file
+
+  # Attempts to find and read file
   insFile <- readLines(fileName, encoding = "latin1")
   
   # Denotes locations of the phrase "End"  
@@ -54,90 +44,90 @@ insulinReader <- function(fileName){
   endLocations2 <- grep("~End", unlist(workingTable))
   allYouNeed <- workingTable[2:(endLocations2[2]-1),]
   endLocations3 <- grep("~End", unlist(allYouNeed))
+  
+  # Takes the standard data and puts it in a tibble
   standardData <- allYouNeed[1:(endLocations3[1]-1),]
   standardData <- standardData[,-ncol(standardData)]
+  
+  # Takes the condition data and puts it in a tibble
   conditionData <- allYouNeed[(endLocations3[1]+2):length(allYouNeed[,1]),] %>%
     fill(c(X1,X5,X6,X7,X8,X9)) %>%
     as.tibble()
   colnames(conditionData) <- as.character(unlist(conditionData[1,]))
   conditionData <- conditionData[-1,]
-  # ConditionData done. Standard Data needs some work
-  
-  # Honestly, it's probably okay just to spit the standardData out as is because it's used so little
-  
-  # Add condition category:
-  # Makes sure there's an 'normal' amount of conditions. If there isn't, it assumes the last one was a singlet.
-  # Should probably check, rather than by multiples of 4, if # of unique unknowns is even.
-  
-  rowResults <- c()
-  
-  uniqueConditions <- unique(conditionData[,1])
-  uniqueConditionsNum <- nrow(uniqueConditions)
-  everyotherUnique <- uniqueConditions[seq(1,length(unlist(uniqueConditions)),2),]
-  everyotherUnique <- pull(everyotherUnique, 1)
-  for (i in 1:length(everyotherUnique)) {
-    thing <- min(grep(everyotherUnique[i], pull(conditionData, 1)))
-    rowResults[i] <- as.integer(thing)
-  }
 
-  # However inefficiently, I now have the row number for every other Unk#
-  lengthbetween <-c()
-  for (i in 1:(length(rowResults)-1)){
-    lengthbetween[i] <- rowResults[i+1] - rowResults[i]
-  }
-  lastResult <- rowResults[length(rowResults)]
-  newLengthBetween <- append(lengthbetween, (nrow(conditionData)-lastResult + 1))
+  # Checks for number and position of Un
+  uniqueConditions <- unique(conditionData$Sample)
+  uniqueConditionsNum <- length(uniqueConditions)
+  conditionLocations <- match(uniqueConditions, conditionData$Sample)
+  
+  # Finds the length between Un(N) and Un(N+1) - Or rather, if the Un was done in duplicate, triplicate, etc.
+  lengthbetween <- diff(conditionLocations)
 
+  # Tacks on the last result length in a kind of awkward, but working, way.
+  lengthbetween <- append(lengthbetween, (nrow(conditionData)- tail(conditionLocations,1) + 1))
+
+  # Checks to see if you did duplicates (within the assay, not the ELISA)
   modulusConditionNumber <- uniqueConditionsNum%/%2
   remainderConditionNumber <- uniqueConditionsNum%%2
-  if (remainderConditionNumber == 0){
-    normalConditionCheck <- function(){
-      usrResponse <- readline(prompt="Is Unknown 1 a duplicate of Unknown 2, etc? (Y/N): ")
-      return(toupper(toString(usrResponse)))
-    }
-    if(normalConditionCheck() == "Y"){
-      conditionNames <- paste("Condition ", rep(1:length(everyotherUnique), newLengthBetween))
-    }
-    else{
+  
+  normalConditionCheck <- function(){
+    usrResponse <- readline(prompt="Is Un01 a duplicate of Un02, Un03 of Un04, etc? (Y/N): ")
+    return(toupper(toString(usrResponse)))
+  }
+  
+  # Checks to see if there's an even amount of Un and if you did it the normal way
+  if (remainderConditionNumber == 0 && normalConditionCheck() == "Y"){
+    conditionNames <- paste("Condition ", rep(1:length(everyotherUnique), newLengthBetween))
+    # If you did it the normal way, your work is done. (will still need condition naming)
+}
+  # If you didn't do it the normal way, you have to enter in which unknowns are associated with which others.
+  else{
+      # Takes a specially formatted input from the user (whitespace independent, due to later steps.) don't add "Un"! Just the numbers
       irregularConditionsList <- function(){
-        # Make sure capital and lowercase are both accepted!
-        writeLines("List Unk# Conditions manually: \n Same condition: Separate by comma (eg 1,2) \n Different condition: Separate by semicolon (eg 1,2; 3,4)")
-        usrResponse <- readline(prompt= "Condition list: ")
-        
+        writeLines(
+          " List Unk# Conditions manually: 
+        \n Same condition: Separate by comma (eg 1,2) 
+        \n Different condition: Separate by semicolon (eg 1,2; 3,4)\n"
+          )
+        usrResponse <- readline(prompt= " Condition list: ")
         return(usrResponse)
       }
       testarray <- c()
       newtestarray <- c()
       
+      
       testarray <- irregularConditionsList()
+      # Removes whitespace
       testarray <- str_replace_all(testarray, " ","")
+      # Splits (first) by semicolon
       testarray <- strsplit(testarray, ";")
       testarray <- unlist(testarray)
+      # Then, splits by colon (Now a 2D array)
       for (i in 1:length(testarray)){
         newtestarray[i] <-strsplit(testarray[i], ",")
       }
       for (i in 1:length(newtestarray)){
         for (j in 1:length(newtestarray[[i]])){
-          if (as.integer(newtestarray[[i]][j]) < 10){
-            # Entry cannot contain leading 0s. Alternately, just do some regex magic and check for numeric equality.
+          # Checks to see if Un number is below 10, adds a leading 0 if it needs it.
+          if (as.integer(newtestarray[[i]][j]) < 10 && substring(newtestarray[[i]][j], 0, 1)!=0){
             newtestarray[[i]][j] <- paste0("0",newtestarray[[i]][j])
           }
           newtestarray[[i]][j] <- paste0("Un",newtestarray[[i]][j])
         }
       }
-      print(newtestarray)
-      # Pick up here. Loop through each row and add condition number "N" to each Un associated with that row.
+      
+      # Finds the rows in the original file with that Un associated with it, adds "Condition N" to each one, in order.
+      # Needs to be able to accept names later!
+      for (i in 1:length(newtestarray)){
+        associatedRows <- grep(paste(newtestarray[[i]], collapse ="|"), conditionData$Sample)
+        conditionData[associatedRows,10] <- paste("Condition", i)
+      }
+      
     }
-  }
-  else {
-    conditionNames <- paste("Condition", 1:((nrow(conditionData)/4))) %>%
-      rep(each = 4)
-    conditionNamesRemainder <- paste("Condition", modulusConditionNumber+1) %>%
-      rep(each = remainderConditionNumber)
-    conditionNames <- c(conditionNames, conditionNamesRemainder)
-  }
   
-  conditionData[,10] <- conditionNames
+  # This next part should be replaced by the manual querying method
+  #conditionData[,10] <- conditionNames
   groupCond <- as.tibble(conditionData) %>%
     group_by(V10) %>%
     mutate("numericMeanConc" = as.numeric(as.character(Mean_Conc))) %>%

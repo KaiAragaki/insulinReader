@@ -1,12 +1,10 @@
 # This is an R script that will take in an ELISA test file and turn it into a tidy, tabular file.
 # This requires you to know which well has which condition, and you will have to label them based on a strict set of labels
-# If a strict set of labels is not used, further analyses become very difficult.
+# If a strict set of labels is not used, further analyses become very difficult
 
-# TODO: 
-# Force this thing to stop making so many damn assumptions
-# Query the user more
+# TODO:
 # Fallback if date is not used as file name
-# Standard Data workup
+# Standard Data workup?
 # Deal with "Range?"
 # Database loading?
 # Change static file system to dynamic
@@ -15,9 +13,14 @@
 # Do calculations
 # Name "[Date] ELISA file (tidy)"
 # Spit out file
+# Maybe make divide by 4 a parameter or option?
+  ## Would allow this to be much more applicable to files - could be AssayReadR instead.
+# Names to allcaps/allmin
 
 # Assumptions:
 # Assumes the numbers at the beginning of the file name are the date in the form of MMDDYY
+# Assumes that 20 mL was used, and that 5 mL was supposed to be used (simple query can fix this)
+
 
 insulinReader <- function(fileName){
   
@@ -126,34 +129,40 @@ insulinReader <- function(fileName){
       
     }
   
-  # This next part should be replaced by the manual querying method
-  #conditionData[,10] <- conditionNames
+  # These calculations may be far too static. I will likely need to change them.
+  
+  userConcentration <- function(){
+    usrResponse <- readline(prompt="To account for dilution, divide by...(if no dilution, enter 1): ")
+    return(as.numeric(as.character(usrResponse)))
+  }
+  
+  userConcentrationValue <- userConcentration()
+  
+  
+  # Will need to check how many conditions to do a SD on - right now it's assuming that there's two, when there could be 1 or 4, etc.
+  # Maybe use seq? Or make an object of the ones I want to SD on beforehand, then just SD on that object? Break in the mutate sequence and then pick back up again?
+  
   groupCond <- as.tibble(conditionData) %>%
     group_by(V10) %>%
     mutate("numericMeanConc" = as.numeric(as.character(Mean_Conc))) %>%
     mutate("conditionMean" = mean(numericMeanConc)) %>%
-    mutate("adjCondMean" = mean(conditionMean/4)) %>%
-    mutate("condSD" = sd(c(numericMeanConc[1]/4, numericMeanConc[3]/4))) %>%#Choosing all values would result in overcounting and lower SD - not cool.
-    mutate("lower" = adjCondMean-condSD) %>%
-    mutate("upper" = adjCondMean+condSD)
+    mutate("adjCondMean" = mean(conditionMean/userConcentrationValue))
 
+  groupCond$everyOtherIndex <- rep_len(c(1,0), nrow(groupCond))
+  View(groupCond)
+  obsPerCondition <- count(groupCond, V10)
+  obsPerCondition <- obsPerCondition[,-1]
+  sdRows <- c()
+  for (i in 1:nrow(obsPerCondition)) {
+    sdRows[[i]] <- seq(1, obsPerCondition[[i,1]], by = 2)
+  }
   
-  View(groupCond)  
-  # I'll still need the SEM, % above glucose, and labelling capabilities, but for now I'll try plotting this mess.
+  groupCond2 <- group_by(groupCond, V10) %>%
+    filter(everyOtherIndex == 1) %>%
+    mutate("condSD" = sd(numericMeanConc))
+
+  groupCond$condSD <- rep(groupCond2$condSD, each = 2)
+  View(groupCond)
+  # I'll still need the SEM, % above glucose, and labelling capabilities
   theNumbers <- seq(from = 1, to = length(groupCond$V10), by = 4)
-  
-  ggplot(groupCond[theNumbers,], mapping = aes(x = V10, y = adjCondMean, fill = V10)) +
-    geom_col() +
-    geom_errorbar(ymin = groupCond[theNumbers, ]$lower, ymax = groupCond[theNumbers, ]$upper)
-  
-  # After all that drama, standardData and conditionData now are (semi) normal tables that can be worked with
-  
-  #  conditionsTable <- workingTable[(endLocations2[1]+2):(endLocations2[2] - 1),]
-  
-  #insFile <- read.table(insFileName, fill = TRUE, skip = endLocations[3], sep = "\t")
-
-  #insFile <- read.table(insFileName, sep = "\t", fill = TRUE, skip = endLocations[2])
-  
-  #read.table(sep = "\t", fill = TRUE) %>%
-  #as.tibble()
 }

@@ -14,6 +14,7 @@
 # Name "[Date] ELISA file (tidy)"
 # Spit out file
 # Names to allcaps/allmin
+# Rename these god awful variable names
 
 # Assumptions:
 # Assumes the numbers at the beginning of the file name are the date in the form of MMDDYY
@@ -21,7 +22,7 @@
 
 
 insulinReader <- function(fileName){
-  
+  {
   # Attach required packages
   library(tidyverse) 
   library(stringr)
@@ -51,26 +52,27 @@ insulinReader <- function(fileName){
   standardData <- standardData[,-ncol(standardData)]
   
   # Takes the condition data and puts it in a tibble
-  conditionData <- allYouNeed[(endLocations3[1]+2):length(allYouNeed[,1]),] %>%
+  elisaData <- allYouNeed[(endLocations3[1]+2):length(allYouNeed[,1]),] %>%
     fill(c(X1,X5,X6,X7,X8,X9)) %>%
     as.tibble()
-  colnames(conditionData) <- as.character(unlist(conditionData[1,]))
-  conditionData <- conditionData[-1,]
-
+  colnames(elisaData) <- as.character(unlist(elisaData[1,]))
+  elisaData <- elisaData[-1,]
+  } # File reading and wrangling code
+  
   # Checks for number and position of Un
-  uniqueConditions <- unique(conditionData$Sample)
-  uniqueConditionsNum <- length(uniqueConditions)
-  conditionLocations <- match(uniqueConditions, conditionData$Sample)
+  uniqueUnknowns <- unique(elisaData$Sample)
+  uniqueUnknownsNum <- length(uniqueUnknowns)
+  unknownLocations <- match(uniqueUnknowns, elisaData$Sample)
   
   # Finds the length between Un(N) and Un(N+1) - Or rather, if the Un was done in duplicate, triplicate, etc.
-  lengthbetween <- diff(conditionLocations)
+  samplesPerUnknown <- diff(unknownLocations)
 
   # Tacks on the last result length in a kind of awkward, but working, way.
-  lengthbetween <- append(lengthbetween, (nrow(conditionData)- tail(conditionLocations,1) + 1))
+  samplesPerUnknown <- append(samplesPerUnknown, (nrow(elisaData)- tail(unknownLocations,1) + 1))
 
   # Checks to see if you did duplicates (within the assay, not the ELISA)
-  modulusConditionNumber <- uniqueConditionsNum%/%2
-  remainderConditionNumber <- uniqueConditionsNum%%2
+  # modulusUnknownNumber <- uniqueUnknownsNum%/%2
+  remainderUnknownNumber <- uniqueUnknownsNum%%2
   
   normalConditionCheck <- function(){
     usrResponse <- readline(prompt="Is Un01 a duplicate of Un02, Un03 of Un04, etc? (Y/N): ")
@@ -78,7 +80,7 @@ insulinReader <- function(fileName){
   }
   
   # Checks to see if there's an even amount of Un and if you did it the normal way
-  if (remainderConditionNumber == 0 && normalConditionCheck() == "Y"){
+  if (remainderUnknownNumber == 0 && normalConditionCheck() == "Y"){
     conditionNames <- paste("Condition ", rep(1:length(everyotherUnique), newLengthBetween))
     # If you did it the normal way, your work is done
   }
@@ -94,10 +96,9 @@ insulinReader <- function(fileName){
         usrResponse <- readline(prompt= " Condition list: ")
         return(usrResponse)
       }
+      
       testarray <- c()
       newtestarray <- c()
-      
-      
       testarray <- irregularConditionsList()
       # Removes whitespace
       testarray <- str_replace_all(testarray, " ","")
@@ -142,8 +143,8 @@ insulinReader <- function(fileName){
       #print(tempConditionHolder)
       
       for (i in 1:length(newtestarray)){
-        associatedRows <- grep(paste(newtestarray[[i]], collapse ="|"), conditionData$Sample)
-        conditionData[associatedRows,10] <- paste(givenConditionNames[i])
+        associatedRows <- grep(paste(newtestarray[[i]], collapse ="|"), elisaData$Sample)
+        elisaData[associatedRows,10] <- paste(givenConditionNames[i])
       }
       
     }
@@ -155,7 +156,7 @@ insulinReader <- function(fileName){
   
   userConcentrationValue <- userConcentration()
   
-  groupCond <- as.tibble(conditionData) %>%
+  groupCond <- as.tibble(elisaData) %>%
     group_by(V10) %>%
     mutate("numericMeanConc" = as.numeric(as.character(Mean_Conc))) %>%
     mutate("conditionMean" = mean(numericMeanConc)) %>%

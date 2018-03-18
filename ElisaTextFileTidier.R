@@ -13,8 +13,6 @@
 # Do calculations
 # Name "[Date] ELISA file (tidy)"
 # Spit out file
-# Maybe make divide by 4 a parameter or option?
-  ## Would allow this to be much more applicable to files - could be AssayReadR instead.
 # Names to allcaps/allmin
 
 # Assumptions:
@@ -82,11 +80,11 @@ insulinReader <- function(fileName){
   # Checks to see if there's an even amount of Un and if you did it the normal way
   if (remainderConditionNumber == 0 && normalConditionCheck() == "Y"){
     conditionNames <- paste("Condition ", rep(1:length(everyotherUnique), newLengthBetween))
-    # If you did it the normal way, your work is done. (will still need condition naming)
-}
+    # If you did it the normal way, your work is done
+  }
   # If you didn't do it the normal way, you have to enter in which unknowns are associated with which others.
   else{
-      # Takes a specially formatted input from the user (whitespace independent, due to later steps.) don't add "Un"! Just the numbers
+      # Takes a specially formatted input from the user (whitespace independent) don't add "Un"! Just the numbers
       irregularConditionsList <- function(){
         writeLines(
           " List Unk# Conditions manually: 
@@ -122,14 +120,33 @@ insulinReader <- function(fileName){
       
       # Finds the rows in the original file with that Un associated with it, adds "Condition N" to each one, in order.
       # Needs to be able to accept names later!
+      # List the condition names, sequentially from Condition 1.
+      # Look to your records to make sure you are naming the same conditions the same thing. 
+      # Because of this, make sure your naming is DESCRIPTIVE and CONSISTENT.
+      # Make sure this thing actually is caps insensitive
+      
+      # Query user for condition names here
+      
+      userConditionNames <- function(){
+        usrResponse <- readline(prompt="Please enter in condition names, from condition 1 to condition 'n'. Caps insensitive. Separate by semicolons: ")
+        return(as.character(usrResponse))
+      }
+      
+      givenConditionNames <- userConditionNames()
+      givenConditionNames <- unlist(strsplit(givenConditionNames, ";"))
+      givenConditionNames <- trimws(givenConditionNames)
+      
+      
+      #groupCond3 <- arrange(groupCond, V10)
+      #tempConditionHolder <- unique(groupCond3$V10)
+      #print(tempConditionHolder)
+      
       for (i in 1:length(newtestarray)){
         associatedRows <- grep(paste(newtestarray[[i]], collapse ="|"), conditionData$Sample)
-        conditionData[associatedRows,10] <- paste("Condition", i)
+        conditionData[associatedRows,10] <- paste(givenConditionNames[i])
       }
       
     }
-  
-  # These calculations may be far too static. I will likely need to change them.
   
   userConcentration <- function(){
     usrResponse <- readline(prompt="To account for dilution, divide by...(if no dilution, enter 1): ")
@@ -137,10 +154,6 @@ insulinReader <- function(fileName){
   }
   
   userConcentrationValue <- userConcentration()
-  
-  
-  # Will need to check how many conditions to do a SD on - right now it's assuming that there's two, when there could be 1 or 4, etc.
-  # Maybe use seq? Or make an object of the ones I want to SD on beforehand, then just SD on that object? Break in the mutate sequence and then pick back up again?
   
   groupCond <- as.tibble(conditionData) %>%
     group_by(V10) %>%
@@ -152,17 +165,18 @@ insulinReader <- function(fileName){
   View(groupCond)
   obsPerCondition <- count(groupCond, V10)
   obsPerCondition <- obsPerCondition[,-1]
-  sdRows <- c()
+  sdRows <- list()
   for (i in 1:nrow(obsPerCondition)) {
+    print(seq(1, obsPerCondition[[i,1]], by = 2))
     sdRows[[i]] <- seq(1, obsPerCondition[[i,1]], by = 2)
   }
-  
+  print(sdRows)
   groupCond2 <- group_by(groupCond, V10) %>%
     filter(everyOtherIndex == 1) %>%
     mutate("condSD" = sd(numericMeanConc))
 
   groupCond$condSD <- rep(groupCond2$condSD, each = 2)
   View(groupCond)
-  # I'll still need the SEM, % above glucose, and labelling capabilities
-  theNumbers <- seq(from = 1, to = length(groupCond$V10), by = 4)
+  # I'll still need the SEM and % above glucose
+
 }

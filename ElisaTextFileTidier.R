@@ -71,9 +71,9 @@ insulinReader <- function(fileName){
   samplesPerUnknown <- append(samplesPerUnknown, (nrow(elisaData)- tail(unknownLocations,1) + 1))
 
   # Checks to see if you did duplicates (within the assay, not the ELISA)
-  # modulusUnknownNumber <- uniqueUnknownsNum%/%2
   remainderUnknownNumber <- uniqueUnknownsNum%%2
   
+  # Query user if duplicate check passes
   normalConditionCheck <- function(){
     usrResponse <- readline(prompt="Is Un01 a duplicate of Un02, Un03 of Un04, etc? (Y/N): ")
     return(toupper(toString(usrResponse)))
@@ -82,11 +82,10 @@ insulinReader <- function(fileName){
   # Checks to see if there's an even amount of Un and if you did it the normal way
   if (remainderUnknownNumber == 0 && normalConditionCheck() == "Y"){
     conditionNames <- paste("Condition ", rep(1:length(everyotherUnique), newLengthBetween))
-    # If you did it the normal way, your work is done
   }
-  # If you didn't do it the normal way, you have to enter in which unknowns are associated with which others.
+  # If not done in 'regular' duplicate, you have to enter in which unknowns are associated with which others.
   else{
-      # Takes a specially formatted input from the user (whitespace independent) don't add "Un"! Just the numbers
+      # Takes a specially formatted input from the user (whitespace independent). Don't add "Un"! Just the numbers.
       irregularConditionsList <- function(){
         writeLines(
           " List Unk# Conditions manually: 
@@ -97,28 +96,22 @@ insulinReader <- function(fileName){
         return(usrResponse)
       }
       
-      testarray <- c()
-      newtestarray <- c()
-      testarray <- irregularConditionsList()
+      splitByUnknown <- c()
       # Removes whitespace
-      testarray <- str_replace_all(testarray, " ","")
+      splitByCondition <- str_replace_all(irregularConditionsList(), " ","")
       # Splits (first) by semicolon
-      testarray <- strsplit(testarray, ";")
-      testarray <- unlist(testarray)
-      # Then, splits by colon (Now a 2D array)
-      for (i in 1:length(testarray)){
-        newtestarray[i] <-strsplit(testarray[i], ",")
-      }
-      for (i in 1:length(newtestarray)){
-        for (j in 1:length(newtestarray[[i]])){
-          # Checks to see if Un number is below 10, adds a leading 0 if it needs it.
-          if (as.integer(newtestarray[[i]][j]) < 10 && substring(newtestarray[[i]][j], 0, 1)!=0){
-            newtestarray[[i]][j] <- paste0("0",newtestarray[[i]][j])
-          }
-          newtestarray[[i]][j] <- paste0("Un",newtestarray[[i]][j])
-        }
-      }
-      
+      splitByCondition <- strsplit(splitByCondition, ";")
+      splitByCondition <- matrix(unlist(splitByCondition)) #lapply instead?
+      # Then, splits by comma (Now a 2D array)
+      splitByUnknown <- apply(splitByCondition, MARGIN = 1, function(x) unlist(strsplit(x, ",")))
+      # Checks to see if Un number is below 10, adds a leading 0 if it needs it.
+      splitByUnknown <- lapply(splitByUnknown, function(x){
+        sapply(x, function(y){
+          if((as.integer(x) < 10) && (substring(x, 1, 1)!="0")){x <- paste0("0", x)}
+        })
+        z <- paste0("Un",x)
+      })
+
       # Finds the rows in the original file with that Un associated with it, adds "Condition N" to each one, in order.
       # Needs to be able to accept names later!
       # List the condition names, sequentially from Condition 1.
@@ -126,8 +119,7 @@ insulinReader <- function(fileName){
       # Because of this, make sure your naming is DESCRIPTIVE and CONSISTENT.
       # Make sure this thing actually is caps insensitive
       
-      # Query user for condition names here
-      
+      # Query user for condition names
       userConditionNames <- function(){
         usrResponse <- readline(prompt="Please enter in condition names, from condition 1 to condition 'n'. Caps insensitive. Separate by semicolons: ")
         return(as.character(usrResponse))
@@ -137,13 +129,8 @@ insulinReader <- function(fileName){
       givenConditionNames <- unlist(strsplit(givenConditionNames, ";"))
       givenConditionNames <- trimws(givenConditionNames)
       
-      
-      #groupCond3 <- arrange(groupCond, V10)
-      #tempConditionHolder <- unique(groupCond3$V10)
-      #print(tempConditionHolder)
-      
-      for (i in 1:length(newtestarray)){
-        associatedRows <- grep(paste(newtestarray[[i]], collapse ="|"), elisaData$Sample)
+      for (i in 1:length(splitByUnknown)){
+        associatedRows <- grep(paste(splitByUnknown[[i]], collapse ="|"), elisaData$Sample)
         elisaData[associatedRows,10] <- paste(givenConditionNames[i])
       }
       
@@ -168,7 +155,6 @@ insulinReader <- function(fileName){
   obsPerCondition <- obsPerCondition[,-1]
   sdRows <- list()
   for (i in 1:nrow(obsPerCondition)) {
-    print(seq(1, obsPerCondition[[i,1]], by = 2))
     sdRows[[i]] <- seq(1, obsPerCondition[[i,1]], by = 2)
   }
   print(sdRows)
@@ -179,5 +165,7 @@ insulinReader <- function(fileName){
   groupCond$condSD <- rep(groupCond2$condSD, each = 2)
   View(groupCond)
   # I'll still need the SEM and % above glucose
+  # I'll likely want to do those operations on a table that only contains every other datapoint - or rather, maybe just one with the condition names and means.
+  # Call it a 'reduced' tibble or something. Save the other data though.
 
 }

@@ -58,7 +58,7 @@ insulinReader <- function(fileName){
   colnames(elisaData) <- as.character(unlist(elisaData[1,]))
   elisaData <- elisaData[-1,]
   } # File reading and wrangling code
-  
+  {
   # Checks for number and position of Un
   uniqueUnknowns <- unique(elisaData$Sample)
   uniqueUnknownsNum <- length(uniqueUnknowns)
@@ -105,11 +105,9 @@ insulinReader <- function(fileName){
       # Then, splits by comma (Now a 2D array)
       splitByUnknown <- apply(splitByCondition, MARGIN = 1, function(x) unlist(strsplit(x, ",")))
       # Checks to see if Un number is below 10, adds a leading 0 if it needs it.
-      splitByUnknown <- lapply(splitByUnknown, function(x){
-        sapply(x, function(y){
-          if((as.integer(x) < 10) && (substring(x, 1, 1)!="0")){x <- paste0("0", x)}
-        })
-        z <- paste0("Un",x)
+      splitByUnknown <- sapply(splitByUnknown, function(x){
+        x <- str_pad(x, 2, "left", pad = "0")
+        x <- paste0("Un", x)
       })
 
       # Finds the rows in the original file with that Un associated with it, adds "Condition N" to each one, in order.
@@ -129,18 +127,20 @@ insulinReader <- function(fileName){
       givenConditionNames <- unlist(strsplit(givenConditionNames, ";"))
       givenConditionNames <- trimws(givenConditionNames)
       
+      # Finds the rows each condition is associated with
+      # Look, I know apply functions are faster. But this works.
       for (i in 1:length(splitByUnknown)){
         associatedRows <- grep(paste(splitByUnknown[[i]], collapse ="|"), elisaData$Sample)
         elisaData[associatedRows,10] <- paste(givenConditionNames[i])
       }
-      
     }
+  } # Gathering "Metadata" through user querying
   
+  # Query user about dilution factor
   userConcentration <- function(){
     usrResponse <- readline(prompt="To account for dilution, divide by...(if no dilution, enter 1): ")
     return(as.numeric(as.character(usrResponse)))
   }
-  
   userConcentrationValue <- userConcentration()
   
   groupCond <- as.tibble(elisaData) %>%
@@ -150,21 +150,20 @@ insulinReader <- function(fileName){
     mutate("adjCondMean" = mean(conditionMean/userConcentrationValue))
 
   groupCond$everyOtherIndex <- rep_len(c(1,0), nrow(groupCond))
-  View(groupCond)
   obsPerCondition <- count(groupCond, V10)
   obsPerCondition <- obsPerCondition[,-1]
   sdRows <- list()
   for (i in 1:nrow(obsPerCondition)) {
     sdRows[[i]] <- seq(1, obsPerCondition[[i,1]], by = 2)
   }
-  print(sdRows)
   groupCond2 <- group_by(groupCond, V10) %>%
     filter(everyOtherIndex == 1) %>%
-    mutate("condSD" = sd(numericMeanConc))
+    mutate("condSD" = sd(numericMeanConc)) %>%
+    mutate("condSEM" = condSD/sqrt(n()))
 
   groupCond$condSD <- rep(groupCond2$condSD, each = 2)
-  View(groupCond)
-  # I'll still need the SEM and % above glucose
+  View(groupCond2)
+  # I'll still need % above glucose (and sd/sem). Check to make sure SEM is working correctly.
   # I'll likely want to do those operations on a table that only contains every other datapoint - or rather, maybe just one with the condition names and means.
   # Call it a 'reduced' tibble or something. Save the other data though.
 

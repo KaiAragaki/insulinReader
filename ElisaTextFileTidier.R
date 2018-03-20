@@ -2,19 +2,23 @@
 # This requires you to know which well has which condition, and you will have to label them based on a strict set of labels
 # If a strict set of labels is not used, further analyses become very difficult
 
+# NOTES:
+# Filename cannot include .txt - just filename
+# Must be .txt form (straight off the reader)
+
 # TODO:
-# Fallback if date is not used as file name
-# Standard Data workup?
 # Deal with "Range?"
-# Database loading?
 # Change static file system to dynamic
 # Spit standard data out as is (don't forget naming conventions, ie DATE_Standards)
-# Ask for date, passage number, and cell line
-# Do calculations
+# Ask for cell line
+# Do calculations for % Above GSIS
 # Name "[Date] ELISA file (tidy)"
 # Spit out file
-# Names to allcaps/allmin
-# Rename these god awful variable names
+# condition names to allcaps/allmin
+# Invalid response catch for Y/N
+
+# BUGS:
+# I think the condition names might be being filled in incorrectly.
 
 # Assumptions:
 # Assumes the numbers at the beginning of the file name are the date in the form of MMDDYY
@@ -119,8 +123,8 @@ insulinReader <- function(fileName){
       
       # Query user for condition names
       userConditionNames <- function(){
-        usrResponse <- readline(prompt="Please enter in condition names, from condition 1 to condition 'n'. Caps insensitive. Separate by semicolons: ")
-        return(as.character(usrResponse))
+        usrResponse <- readline(prompt="Enter in condition names, from Condition 1 to Condition 'n'. Caps insensitive. Separate by semicolons: ")
+        return((tolower(as.character(usrResponse))))
       }
       
       givenConditionNames <- userConditionNames()
@@ -133,8 +137,27 @@ insulinReader <- function(fileName){
         associatedRows <- grep(paste(splitByUnknown[[i]], collapse ="|"), elisaData$Sample)
         elisaData[associatedRows,10] <- paste(givenConditionNames[i])
       }
+  }
+  
+  # Asks for passage number of cells
+  passageNumber <- function(){
+    usrResponse <- readline(prompt="What passage number are these cells? (If unknown, enter 'NA': ")
+    return(toupper(usrResponse))
+  }
+  
+  # Checks to see if it got the date right - if not, it asks the user for the date
+  checkFileDate <- function(){
+    usrResponse <- readline(prompt=paste("Is", fileDate, "the correct date for this file? (Y/N): "))
+    return(toupper(toString(usrResponse)))
+  }
+  
+  if (checkFileDate() == "N") {
+    newFileDate <- function(){
+      usrResponse <- readline(prompt=paste("Please write the correct file date (in the form MMDDYY): "))
+      return(toupper(toString(usrResponse)))
     }
-  } # Gathering "Metadata" through user querying
+    fileDate <- newFileDate()
+  }
   
   # Query user about dilution factor
   userConcentration <- function(){
@@ -143,6 +166,8 @@ insulinReader <- function(fileName){
   }
   userConcentrationValue <- userConcentration()
   
+  } # Gathering "Metadata" through user querying
+
   groupCond <- as.tibble(elisaData) %>%
     group_by(V10) %>%
     mutate("numericMeanConc" = as.numeric(as.character(Mean_Conc))) %>%
@@ -162,8 +187,10 @@ insulinReader <- function(fileName){
     mutate("condSEM" = condSD/sqrt(n()))
 
   groupCond$condSD <- rep(groupCond2$condSD, each = 2)
+  View(groupCond)
   View(groupCond2)
-  # I'll still need % above glucose (and sd/sem). Check to make sure SEM is working correctly.
+  # I'll still need % above glucose (and sd/sem of % above glucose). Check to make sure SEM is working correctly.
+  # Will need to add SEM to the main table as well
   # I'll likely want to do those operations on a table that only contains every other datapoint - or rather, maybe just one with the condition names and means.
   # Call it a 'reduced' tibble or something. Save the other data though.
 

@@ -9,16 +9,20 @@
 # TODO:
 # Deal with "Range?"
 # Change static file system to dynamic
-# Spit standard data out as is (don't forget naming conventions, ie DATE_Standards)
 # Ask for cell line
 # Do calculations for % Above GSIS
 # Name "[Date] ELISA file (tidy)"
 # Spit out file
 # condition names to allcaps/allmin
 # Invalid response catch for Y/N
+# Catch "looks like there were some unnamed conditions" check for NAs
+# Ask if you want TSV, CSV, or default?
+# % above GSIS, SD/SEM % above GSIS 
+# Check to make sure SEM is working correctly for main table
+# Drop the everyOtherIndex frome exported file (I think a few other columns can be dropped as well)
 
-# BUGS:
-# I think the condition names might be being filled in incorrectly.
+# BUGS
+# Not asking for passage number
 
 # Assumptions:
 # Assumes the numbers at the beginning of the file name are the date in the form of MMDDYY
@@ -186,11 +190,10 @@ insulinReader <- function(fileName){
     mutate("condSEM" = condSD/sqrt(n()))
 
   groupCond$condSD <- rep(groupCond2$condSD, each = 2)
+  groupCond$condSEM <- rep(groupCond2$condSEM, each = 2)
   View(groupCond)
   View(groupCond2)
-  # I'll still need % above glucose (and sd/sem of % above glucose). Check to make sure SEM is working correctly.
-  # Will need to add SEM to the main table as well
-  # I'll likely want to do those operations on a table that only contains every other datapoint - or rather, maybe just one with the condition names and means.
-  # Call it a 'reduced' tibble or something. Save the other data though.
+  write.table(groupCond, file =paste(fileDate,"Tidied"))
+  write.table(standardData, file = paste(fileDate, "Standard Data Tidied"))
 
 }

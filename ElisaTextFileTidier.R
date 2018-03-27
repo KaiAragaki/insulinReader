@@ -4,30 +4,27 @@
 
 # NOTES:
 # Filename cannot include .txt - just filename
-# Must be .txt form (straight off the reader)
 
 # TODO:
 # Deal with "Range?"
-# Change static file system to dynamic
-# Ask for cell line
-# Do calculations for % Above GSIS
-# Name "[Date] ELISA file (tidy)"
-# Spit out file
 # condition names to allcaps/allmin
-# Invalid response catch for Y/N
-# Catch "looks like there were some unnamed conditions" check for NAs
-# Ask if you want TSV, CSV, or default?
-# % above GSIS, SD/SEM % above GSIS 
+# % above GSIS, SD/SEM % above GSIS
+## If I wanted to make this more universal, I would have to add a check: do you want to do % above GSIS?
+## Screw making this univesal - I'll just go ahead and add GSIS by default.
 # Check to make sure SEM is working correctly for main table
-# Drop the everyOtherIndex frome exported file (I think a few other columns can be dropped as well)
 
-# BUGS
-# Not asking for passage number
+# MAYBE DO:
+# Invalid response catch for Y/N
+# More invalid entry catching
+# Ask if you want TSV, CSV, or default?
+# Catch "looks like there were some unnamed conditions" check for NAs
+# Make a "easy Excel" file
+# Default values
 
-# Assumptions:
+# ASSUMPTIONS:
 # Assumes the numbers at the beginning of the file name are the date in the form of MMDDYY
-# Assumes that 20 mL was used, and that 5 mL was supposed to be used (simple query can fix this)
-
+# Input file must be straight off the plate reader
+# Assumes files are one level below the script, in a folder called "Elisa Text Files"
 
 insulinReader <- function(fileName){
   {
@@ -35,8 +32,8 @@ insulinReader <- function(fileName){
   library(tidyverse) 
   library(stringr)
 
-  # Static file path. Set as working directory. (Will need to change before deployment)
-  path <- file.path("C:", "Users", "Adam", "Desktop", "R for Lab Data", "Elisa Text Files") %>%
+     
+  path <- file.path(".", "Elisa Text Files") %>%
     setwd()
   
   # Extract numbers from fileName and use them as date
@@ -144,9 +141,17 @@ insulinReader <- function(fileName){
   
   # Asks for passage number of cells
   passageNumber <- function(){
-    usrResponse <- readline(prompt="What passage number are these cells? (If unknown, enter 'NA': ")
+    usrResponse <- readline(prompt="What passage number are these cells? (If unknown, enter 'NA'): ")
     return(toupper(usrResponse))
   }
+  passageNumber <- passageNumber()
+  
+  # Asks for cell line of cells. Something else that needs controlled vocabulary.
+  cellLine <- function(){
+    usrResponse <- readline(prompt="What cell line are these cells?: ")
+    return(toupper(usrResponse))
+  }
+  cellLine <- cellLine()
   
   # Checks to see if it got the date right - if not, it asks the user for the date
   checkFileDate <- function(){
@@ -191,9 +196,15 @@ insulinReader <- function(fileName){
 
   groupCond$condSD <- rep(groupCond2$condSD, each = 2)
   groupCond$condSEM <- rep(groupCond2$condSEM, each = 2)
+  
+  # Drops unneeded columns
+  groupCond <- groupCond[,-c(8,11,14)]
   View(groupCond)
-  View(groupCond2)
-  write.table(groupCond, file =paste(fileDate,"Tidied"))
-  write.table(standardData, file = paste(fileDate, "Standard Data Tidied"))
-
+  
+  # Exports the files
+  write.table(groupCond, file = paste(fileDate,"Tidied"), sep = "\t", col.names = NA)
+  write.table(standardData, file = paste(fileDate, "Standard Data Tidied"), sep = "\t", col.names = NA)
+  
+  # Brings working directory back to before
+  setwd("..")
 }

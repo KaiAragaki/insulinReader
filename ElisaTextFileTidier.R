@@ -11,7 +11,6 @@
 
 # TODO:
 # Deal with "Range?"
-# % above GSIS, SD/SEM % above GSIS
 
 # MAYBE:
 # Invalid response catch for Y/N
@@ -186,15 +185,17 @@ insulinReader <- function(fileName){
   groupCond2 <- group_by(groupCond, V10) %>%
     filter(everyOtherIndex == 1) %>%
     mutate("condSD" = sd(numericMeanConc)) %>%
-    mutate("condSEM" = condSD/sqrt(n()))
+    mutate("condSEM" = condSD/sqrt(n())) %>%
+    ungroup() %>%
+    mutate("percentAboveGSIS" = (((conditionMean - first(conditionMean[V10 == "high glucose"]))/first(conditionMean[V10 == "high glucose"]) * 100)))
 
   groupCond$condSD <- rep(groupCond2$condSD, each = 2)
   groupCond$condSEM <- rep(groupCond2$condSEM, each = 2)
+  groupCond$percentAboveGSIS <- rep(groupCond2$percentAboveGSIS, each = 2)
   
   # Drops unneeded columns
   groupCond <- groupCond[,-c(8,11,14)]
   View(groupCond)
-  
   # Exports the files
   write.table(groupCond, file = paste(fileDate,"Tidied"), sep = "\t", col.names = NA)
   write.table(standardData, file = paste(fileDate, "Standard Data Tidied"), sep = "\t", col.names = NA)

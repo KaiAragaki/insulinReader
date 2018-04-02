@@ -11,6 +11,9 @@
 
 # TODO:
 # Deal with "Range?"
+## do na.rm = TRUE on all applicable calculations
+# Documentation
+# Do something with Passage Number and Cell Line Data
 
 # MAYBE:
 # Invalid response catch for Y/N
@@ -55,6 +58,7 @@ insulinReader <- function(fileName){
     as.tibble()
   colnames(elisaData) <- as.character(unlist(elisaData[1,]))
   elisaData <- elisaData[-1,]
+  elisaData[elisaData == "Range?"] <- NA
   } # File reading and wrangling code
   {
   # Checks for number and position of Un
@@ -79,12 +83,19 @@ insulinReader <- function(fileName){
   
   # Checks to see if there's an even amount of Un and if you did it the normal way
   if (remainderUnknownNumber == 0 && normalConditionCheck() == "Y"){
-    conditionNames <- paste("Condition ", rep(1:length(everyotherUnique), newLengthBetween))
+    # conditionNumberSeq <- c(1:uniqueUnknownsNum)
+    # conditionNumberSeq <- str_pad(conditionNumberSeq, 2, "left", pad = "0")
+    # conditionNumberSeq <- paste0("Un", conditionNumberSeq)
+    # splitByUnknown <- matrix(conditionNumberSeq, ncol=2, nrow = uniqueUnknownsNum/2, byrow = TRUE)
+    splitByUnknown <- c()
+    for (i in 1:(uniqueUnknownsNum/2)){
+      splitByUnknown[[i]] <- c(paste0("Un", str_pad((i*2 - 1), 2, "left", pad = "0")),paste0("Un", str_pad((i*2), 2, "left", pad = "0")))
+    }
   }
   # If not done in 'regular' duplicate, you have to enter in which unknowns are associated with which others.
   else{
       # Takes a specially formatted input from the user (whitespace independent). Don't add "Un"! Just the numbers.
-      irregularConditionsList <- function(){
+      conditionsList <- function(){
         writeLines(
           " List Unk# Conditions manually: 
         \n Same condition: Separate by comma (eg 1,2) 
@@ -93,10 +104,9 @@ insulinReader <- function(fileName){
         usrResponse <- readline(prompt= " Condition list: ")
         return(usrResponse)
       }
-      
       splitByUnknown <- c()
       # Removes whitespace
-      splitByCondition <- str_replace_all(irregularConditionsList(), " ","")
+      splitByCondition <- str_replace_all(conditionsList(), " ","")
       # Splits (first) by semicolon
       splitByCondition <- strsplit(splitByCondition, ";")
       splitByCondition <- matrix(unlist(splitByCondition))
@@ -107,30 +117,29 @@ insulinReader <- function(fileName){
         x <- str_pad(x, 2, "left", pad = "0")
         x <- paste0("Un", x)
       })
-      # Finds the rows in the original file with that Un associated with it, adds "Condition N" to each one, in order.
-      # List the condition names, sequentially from Condition 1.
-      # Look to your records to make sure you are naming the same conditions the same thing. 
-      # Because of this, make sure your naming is DESCRIPTIVE and CONSISTENT.
-      # Make sure this thing actually is caps insensitive
-      # Query user for condition names
-      userConditionNames <- function(){
-        usrResponse <- readline(prompt="Enter in condition names, from Condition 1 to Condition 'n'. Caps insensitive. Separate by semicolons: ")
-        return((tolower(as.character(usrResponse))))
-      }
-      
-      givenConditionNames <- userConditionNames()
-      givenConditionNames <- unlist(strsplit(givenConditionNames, ";"))
-      givenConditionNames <- trimws(givenConditionNames)
-      
-      # Finds the rows each condition is associated with
-      # Look, I know apply functions are faster. But this works.
-      for (i in 1:length(splitByUnknown)){
-        associatedRows <- grep(paste(splitByUnknown[[i]], collapse ="|"), elisaData$Sample)
-        elisaData[associatedRows,10] <- paste(givenConditionNames[i])
-      }
+  }
+  print(splitByUnknown)
+  # Finds the rows in the original file with that Un associated with it, adds "Condition N" to each one, in order.
+  # List the condition names, sequentially from Condition 1.
+  # Look to your records to make sure you are naming the same conditions the same thing. 
+  # Because of this, make sure your naming is DESCRIPTIVE and CONSISTENT.
+  # Make sure this thing actually is caps insensitive
+  # Query user for condition names
+  userConditionNames <- function(){
+    usrResponse <- readline(prompt="Enter in condition names, from Condition 1 to Condition 'n'. Caps insensitive. Separate by semicolons: ")
+    return((tolower(as.character(usrResponse))))
   }
   
-  # Try split apply combine
+  givenConditionNames <- userConditionNames()
+  givenConditionNames <- unlist(strsplit(givenConditionNames, ";"))
+  givenConditionNames <- trimws(givenConditionNames)
+  
+  # Finds the rows each condition is associated with
+  # Look, I know apply functions are faster. But this works.
+  for (i in 1:length(splitByUnknown)){
+    associatedRows <- grep(paste(splitByUnknown[[i]], collapse ="|"), elisaData$Sample)
+    elisaData[associatedRows,10] <- paste(givenConditionNames[i])
+  }
   
   # Asks for passage number of cells
   passageNumber <- function(){

@@ -3,28 +3,22 @@
 # If a strict set of labels is not used, further analyses become very difficult
 
 # NOTES:
+# Input file must be straight off the plate reader
 # Filename cannot include .txt - just filename
+# High Glucose condition will be used for GSIS, and must be named "High Glucose" or some capitalization derivative thereof
+# Assumes the numbers at the beginning of the file name are the date in the form of MMDDYY
+# Assumes files are one level below the script, in a folder called "Elisa Text Files"
 
 # TODO:
 # Deal with "Range?"
-# condition names to allcaps/allmin
 # % above GSIS, SD/SEM % above GSIS
-## If I wanted to make this more universal, I would have to add a check: do you want to do % above GSIS?
-## Screw making this univesal - I'll just go ahead and add GSIS by default.
-# Check to make sure SEM is working correctly for main table
 
-# MAYBE DO:
+# MAYBE:
 # Invalid response catch for Y/N
 # More invalid entry catching
-# Ask if you want TSV, CSV, or default?
 # Catch "looks like there were some unnamed conditions" check for NAs
 # Make a "easy Excel" file
 # Default values
-
-# ASSUMPTIONS:
-# Assumes the numbers at the beginning of the file name are the date in the form of MMDDYY
-# Input file must be straight off the plate reader
-# Assumes files are one level below the script, in a folder called "Elisa Text Files"
 
 insulinReader <- function(fileName){
   {

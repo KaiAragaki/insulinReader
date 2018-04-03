@@ -10,10 +10,9 @@
 # Assumes files are one level below the script, in a folder called "Elisa Text Files"
 
 # TODO:
-# Deal with "Range?"
-## do na.rm = TRUE on all applicable calculations
 # Documentation
 # Do something with Passage Number and Cell Line Data
+# What if the date ISN'T in the filename?
 
 # MAYBE:
 # Invalid response catch for Y/N
@@ -21,13 +20,12 @@
 # Catch "looks like there were some unnamed conditions" check for NAs
 # Make a "easy Excel" file
 # Default values
+# Setwd back as soon as possible in case of errors
 
 insulinReader <- function(fileName){
   {
   # Attach required packages
-  library(tidyverse) 
-  library(stringr)
-
+  library(tidyverse)
      
   path <- file.path(".", "Elisa Text Files") %>%
     setwd()
@@ -181,8 +179,8 @@ insulinReader <- function(fileName){
   groupCond <- as.tibble(elisaData) %>%
     group_by(V10) %>%
     mutate("numericMeanConc" = as.numeric(as.character(Mean_Conc))) %>%
-    mutate("conditionMean" = mean(numericMeanConc)) %>%
-    mutate("adjCondMean" = mean(conditionMean/userConcentrationValue))
+    mutate("conditionMean" = mean(numericMeanConc, na.rm = TRUE)) %>%
+    mutate("adjCondMean" = mean(conditionMean/userConcentrationValue, na.rm = TRUE))
 
   groupCond$everyOtherIndex <- rep_len(c(1,0), nrow(groupCond))
   obsPerCondition <- count(groupCond, V10)
@@ -193,7 +191,7 @@ insulinReader <- function(fileName){
   }
   groupCond2 <- group_by(groupCond, V10) %>%
     filter(everyOtherIndex == 1) %>%
-    mutate("condSD" = sd(numericMeanConc)) %>%
+    mutate("condSD" = sd(numericMeanConc, na.rm = TRUE)) %>%
     mutate("condSEM" = condSD/sqrt(n())) %>%
     ungroup() %>%
     mutate("percentAboveGSIS" = (((conditionMean - first(conditionMean[V10 == "high glucose"]))/first(conditionMean[V10 == "high glucose"]) * 100)))

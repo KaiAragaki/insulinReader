@@ -160,8 +160,8 @@ insulinReader <- function(fileName){
   groupCond <- as.tibble(elisaData) %>%
     group_by(conditionNames) %>%
     mutate("numericMeanConc" = as.numeric(as.character(Mean_Conc))) %>%
-    mutate("conditionMean" = mean(numericMeanConc, na.rm = TRUE)) %>%
-    mutate("adjCondMean" = mean(conditionMean/userConcentrationValue, na.rm = TRUE))
+    mutate("adjNumericMeanConc" = numericMeanConc/userConcentrationValue) %>%
+    mutate("conditionMean" = mean(adjNumericMeanConc, na.rm = TRUE))
 
   groupCond$everyOtherIndex <- rep_len(c(1,0), nrow(groupCond))
   obsPerCondition <- count(groupCond, conditionNames)
@@ -170,9 +170,11 @@ insulinReader <- function(fileName){
   for (i in 1:nrow(obsPerCondition)) {
     sdRows[[i]] <- seq(1, obsPerCondition[[i,1]], by = 2)
   }
-  groupCond2 <- group_by(groupCond, conditionNames) %>%
+
+  groupCond2 <- groupCond %>%
+    group_by(conditionNames) %>%
     filter(everyOtherIndex == 1) %>%
-    mutate("condSD" = sd(numericMeanConc, na.rm = TRUE)) %>%
+    mutate("condSD" = sd(adjNumericMeanConc, na.rm = TRUE)) %>%
     mutate("condSEM" = condSD/sqrt(n())) %>%
     ungroup() %>%
     mutate("percentAboveGSIS" = (((conditionMean - first(conditionMean[conditionNames == "high glucose"]))/first(conditionMean[conditionNames == "high glucose"]) * 100)))
